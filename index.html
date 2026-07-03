@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타이타닉 의사결정트리 머신러닝 연구소</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome 아이콘 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+        }
+        .active-tab {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .animate-dash {
+            stroke-dasharray: 8;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -16;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- 상단 네비게이션 헤더 -->
+    <header class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-md px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+                <i class="fa-solid fa-network-wired text-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight">타이타닉 의사결정트리 모델러</h1>
+                <p class="text-xs text-slate-300">Titanic Decision Tree Interactive Machine Learning Studio</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-xs text-slate-300">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-database text-blue-400"></i> N = 500 샘플</span>
+            <span class="flex items-center gap-1"><i class="fa-solid fa-code text-teal-400"></i> Pure Client CART Engine</span>
+            <span class="bg-blue-600 text-white px-2 py-1 rounded font-semibold text-[10px]">v1.2 Live</span>
+        </div>
+    </header>
+
+    <!-- 메인 대시보드 레이아웃 -->
+    <main class="flex-grow p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] w-full mx-auto">
+        
+        <!-- 왼쪽 사이드바: 컨트롤 및 예측 패널 (4-Cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- 1. 모델 설정 및 훈련 매개변수 -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-500"></i>
+                        모델 학습 하이퍼파라미터
+                    </h2>
+                    <span class="text-xs text-slate-500">CART 알고리즘</span>
+                </div>
+
+                <!-- Train/Test Split -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                        <span>학습 데이터 비율 (Train Split)</span>
+                        <span id="trainRatioVal" class="text-indigo-600">80%</span>
+                    </div>
+                    <input type="range" id="trainRatio" min="50" max="90" step="5" value="80" 
+                           class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <p class="text-[10px] text-slate-400 mt-0.5">나머지 데이터는 모델 성능 평가(검증)에 쓰입니다.</p>
+                </div>
+
+                <!-- Max Depth -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                        <span>최대 깊이 (Max Depth)</span>
+                        <span id="maxDepthVal" class="text-indigo-600">3</span>
+                    </div>
+                    <input type="range" id="maxDepth" min="1" max="5" step="1" value="3" 
+                           class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <p class="text-[10px] text-slate-400 mt-0.5">트리의 최대 계층 수입니다. 너무 크면 과적합(Overfitting)될 수 있습니다.</p>
+                </div>
+
+                <!-- Min Samples Split -->
+                <div class="mb-5">
+                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                        <span>최소 분할 샘플 수 (Min Samples Split)</span>
+                        <span id="minSplitVal" class="text-indigo-600">10명</span>
+                    </div>
+                    <input type="range" id="minSplit" min="2" max="50" step="2" value="10" 
+                           class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <p class="text-[10px] text-slate-400 mt-0.5">노드가 자식 노드로 쪼개지기 위한 최소 샘플 수입니다.</p>
+                </div>
+
+                <!-- 훈련 실행 버튼 -->
+                <button id="btnTrain" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl font-semibold text-sm transition-all duration-300 shadow-md shadow-indigo-100 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate"></i>
+                    모델 새로 고침 및 훈련하기
+                </button>
+            </div>
+
+            <!-- 2. 가상 승객 생존율 테스트 패널 -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex-grow flex flex-col">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-teal-500"></i>
+                        가상 승객 생존율 예측 시뮬레이터
+                    </h2>
+                    <span class="text-xs text-slate-500">실시간 반영</span>
+                </div>
+
+                <div class="space-y-4 flex-grow">
+                    <!-- 성별 및 객실 등급 -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">성별 (Sex)</label>
+                            <select id="predSex" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="female">여성 (Female)</option>
+                                <option value="male" selected>남성 (Male)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">객실 등급 (Class)</label>
+                            <select id="predPclass" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="1">1등실 (First)</option>
+                                <option value="2">2등실 (Second)</option>
+                                <option value="3" selected>3등실 (Third)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 나이 슬라이더 -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                            <span>나이 (Age)</span>
+                            <span id="predAgeVal" class="text-teal-600">25세</span>
+                        </div>
+                        <input type="range" id="predAge" min="1" max="80" value="25" 
+                               class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600">
+                    </div>
+
+                    <!-- 요금 슬라이더 -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                            <span>요금 (Fare, 단위: £)</span>
+                            <span id="predFareVal" class="text-teal-600">£15.0</span>
+                        </div>
+                        <input type="range" id="predFare" min="0" max="300" step="5" value="15" 
+                               class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600">
+                    </div>
+
+                    <!-- 동반가족 구성원 수 -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">형제/배우자 (SibSp)</label>
+                            <input type="number" id="predSibSp" min="0" max="8" value="0" 
+                                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">부모/자녀 (Parch)</label>
+                            <input type="number" id="predParch" min="0" max="6" value="0" 
+                                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 생존 예측 결과 표시 계기판 -->
+                <div class="mt-6 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center" id="resultCardBg">
+                    <div class="text-xs font-semibold text-slate-500 mb-1" id="predictLabel">예측된 생존 상태</div>
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <span id="predictResultIcon" class="text-3xl">💀</span>
+                        <span id="predictResultText" class="text-2xl font-black text-slate-800">사망 예측</span>
+                    </div>
+                    <!-- 프로그레스 바 -->
+                    <div class="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
+                        <div id="predictProgressBar" class="h-full bg-red-500 transition-all duration-500" style="width: 25%"></div>
+                    </div>
+                    <div class="text-xs text-slate-600">
+                        의사결정 모델 추정 생존확률: <span id="predictProbability" class="font-bold text-red-600">25.0%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 오른쪽 메인 콘텐츠 영역: 탭 레이아웃 (8-Cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- 탭 헤더 전환 -->
+            <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-slate-100 flex gap-2 overflow-x-auto">
+                <button onclick="switchTab('eda')" id="tab-eda" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 active-tab transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie"></i> 데이터 탐색 & EDA
+                </button>
+                <button onclick="switchTab('tree')" id="tab-tree" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-tree"></i> 의사결정트리 맵
+                </button>
+                <button onclick="switchTab('eval')" id="tab-eval" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-gauge-high"></i> 성능 평가 & 중요도
+                </button>
+                <button onclick="switchTab('coach')" id="tab-coach" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-robot"></i> AI 데이터 사이언스 코치
+                </button>
+            </div>
+
+            <!-- Tab 1: 데이터 분석 및 EDA -->
+            <div id="panel-eda" class="tab-panel space-y-6">
+                <!-- 핵심 통계 카드 -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <div class="text-slate-400 text-xs font-semibold">전체 샘플 수</div>
+                        <div class="text-2xl font-black text-slate-800 mt-1" id="statTotal">500</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <div class="text-slate-400 text-xs font-semibold">전체 생존자 수</div>
+                        <div class="text-2xl font-black text-emerald-600 mt-1" id="statSurvived">192명</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <div class="text-slate-400 text-xs font-semibold">평균 생존율</div>
+                        <div class="text-2xl font-black text-slate-800 mt-1" id="statSurvivalRate">38.4%</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <div class="text-slate-400 text-xs font-semibold">평균 승선요금</div>
+                        <div class="text-2xl font-black text-slate-800 mt-1" id="statAvgFare">£32.8</div>
+                    </div>
+                </div>
+
+                <!-- 시각화 차트 그리드 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 성별 생존 여부 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-venus-mars text-indigo-500"></i>
+                            성별 생존 인원 비교
+                        </h3>
+                        <div class="relative h-60">
+                            <canvas id="chartSex"></canvas>
+                        </div>
+                    </div>
+                    <!-- 등실별 생존율 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-crown text-amber-500"></i>
+                            객실 등급별(Pclass) 생존 비율
+                        </h3>
+                        <div class="relative h-60">
+                            <canvas id="chartClass"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 승객 원본 데이터 그리드 및 가상 승객 데이터셋 추가 -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">타이타닉 시뮬레이션 데이터셋 목록</h3>
+                            <p class="text-xs text-slate-400">데이터를 검색하고 하단 버튼으로 가상의 승객 데이터를 직접 등록해볼 수 있습니다.</p>
+                        </div>
+                        <!-- 검색 필드 -->
+                        <div class="relative w-full sm:w-64">
+                            <input type="text" id="tableSearch" placeholder="승객 이름 검색..." 
+                                   class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-100 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-100 text-slate-500">
+                                    <th class="p-3 font-semibold">ID</th>
+                                    <th class="p-3 font-semibold">생존 여부</th>
+                                    <th class="p-3 font-semibold">등급</th>
+                                    <th class="p-3 font-semibold">이름</th>
+                                    <th class="p-3 font-semibold">성별</th>
+                                    <th class="p-3 font-semibold">나이</th>
+                                    <th class="p-3 font-semibold">가족 수(형제/부모)</th>
+                                    <th class="p-3 font-semibold">요금</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-50">
+                                <!-- 데이터 바인딩 영역 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 페이징 컨트롤 -->
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-xs text-slate-500" id="tablePageInfo">1/5 페이지</span>
+                        <div class="flex gap-1.5">
+                            <button id="btnPrevPage" class="px-3 py-1.5 border border-slate-200 rounded text-xs hover:bg-slate-50 transition-colors">이전</button>
+                            <button id="btnNextPage" class="px-3 py-1.5 border border-slate-200 rounded text-xs hover:bg-slate-50 transition-colors">다음</button>
+                        </div>
+                    </div>
+
+                    <!-- 데이터셋에 가상 승객 추가하기 폼 -->
+                    <div class="mt-4 p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <h4 class="font-bold text-slate-800 text-xs mb-3 flex items-center gap-1">
+                            <i class="fa-solid fa-plus-circle text-indigo-500"></i>
+                            이 데이터셋에 나만의 맞춤 승객 직접 추가하기
+                        </h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                            <input type="text" id="addName" placeholder="승객 이름" class="p-2 border border-slate-200 rounded bg-white text-xs col-span-2 sm:col-span-2">
+                            <select id="addSex" class="p-2 border border-slate-200 rounded bg-white text-xs">
+                                <option value="female">여성</option>
+                                <option value="male" selected>남성</option>
+                            </select>
+                            <select id="addPclass" class="p-2 border border-slate-200 rounded bg-white text-xs">
+                                <option value="1">1등실</option>
+                                <option value="2">2등실</option>
+                                <option value="3" selected>3등실</option>
+                            </select>
+                            <input type="number" id="addAge" placeholder="나이" min="1" max="85" value="25" class="p-2 border border-slate-200 rounded bg-white text-xs">
+                            <input type="number" id="addFare" placeholder="요금 (£)" min="0" max="500" value="15" class="p-2 border border-slate-200 rounded bg-white text-xs">
+                        </div>
+                        <div class="flex justify-between items-center mt-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-semibold text-slate-600">이 승객의 실제 최종 결과:</span>
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="addSurvived" value="1" checked class="text-emerald-500 focus:ring-0">
+                                    <span class="text-xs text-slate-700 font-semibold text-emerald-600">생존</span>
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="addSurvived" value="0" class="text-rose-500 focus:ring-0">
+                                    <span class="text-xs text-slate-700 font-semibold text-rose-600">사망</span>
+                                </label>
+                            </div>
+                            <button id="btnAddPassenger" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold text-xs transition-colors flex items-center gap-1.5 shadow">
+                                <i class="fa-solid fa-user-plus"></i> 데이터셋에 승객 등록
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: 의사결정트리 맵 시각화 -->
+            <div id="panel-tree" class="tab-panel space-y-6 hidden">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-100 gap-2 mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">트리 구조 다이어그램 (Decision Tree Map)</h3>
+                            <p class="text-xs text-slate-400">데이터를 분할하기 위한 CART 의사결정 경로를 인터랙티브하게 보여줍니다.</p>
+                        </div>
+                        <div class="flex gap-2 text-[10px]">
+                            <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 bg-indigo-600 rounded"></span> 통과 노드</span>
+                            <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 bg-emerald-600 rounded"></span> 생존 리프</span>
+                            <span class="flex items-center gap-1 text-slate-600"><span class="w-2.5 h-2.5 bg-rose-600 rounded"></span> 사망 리프</span>
+                        </div>
+                    </div>
+
+                    <!-- SVG 뷰포트 컨테이너 -->
+                    <div class="w-full overflow-x-auto bg-slate-900 rounded-xl p-4 border border-slate-800">
+                        <svg id="treeSvg" width="1024" height="520" class="mx-auto block text-white select-none">
+                            <!-- JS를 통해 동적 노드 및 경로 생성 -->
+                        </svg>
+                    </div>
+
+                    <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col sm:flex-row items-center gap-3 justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                            <p class="text-xs font-semibold text-slate-700">
+                                좌측 '가상 승객 생존율 테스트'에서 값을 바꾸면 활성 경로가 <span class="text-amber-500 font-bold">오렌지색 점선</span>으로 실시간 업데이트됩니다!
+                            </p>
+                        </div>
+                        <button id="btnZoomFit" class="px-3 py-1 bg-white border border-slate-200 text-xs font-semibold text-slate-600 rounded hover:bg-slate-100 flex items-center gap-1 transition">
+                            <i class="fa-solid fa-arrows-alt"></i> 경로 추적 리셋
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: 모델 평가 및 중요도 -->
+            <div id="panel-eval" class="tab-panel space-y-6 hidden">
+                <!-- 평가 성적표 그리드 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- 지표 성적 리스트 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                        <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                            <i class="fa-solid fa-bullseye text-indigo-500"></i>
+                            모델 분류 정확도 성적표
+                        </h3>
+                        
+                        <div class="space-y-4 flex-grow">
+                            <!-- Accuracy -->
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span class="text-slate-600">학습 세트 정확도 (Train Accuracy)</span>
+                                    <span class="text-indigo-600" id="metricTrainAcc">0.0%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div id="barTrainAcc" class="h-full bg-indigo-600 transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Test Accuracy -->
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span class="text-slate-600">검증용 테스트 정확도 (Test Accuracy)</span>
+                                    <span class="text-emerald-600" id="metricTestAcc">0.0%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div id="barTestAcc" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Precision / Recall / F1 -->
+                            <div class="grid grid-cols-3 gap-3 pt-2 text-center">
+                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <div class="text-[10px] font-semibold text-slate-400">정밀도 (Precision)</div>
+                                    <div class="text-sm font-bold text-slate-700 mt-0.5" id="metricPrecision">0.0%</div>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <div class="text-[10px] font-semibold text-slate-400">재현율 (Recall)</div>
+                                    <div class="text-sm font-bold text-slate-700 mt-0.5" id="metricRecall">0.0%</div>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <div class="text-[10px] font-semibold text-slate-400">F1 스코어 (F1-Score)</div>
+                                    <div class="text-sm font-bold text-slate-700 mt-0.5" id="metricF1">0.0%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 오차 행렬 (Confusion Matrix) -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                            <i class="fa-solid fa-table-cells text-indigo-500"></i>
+                            혼동 행렬 (Confusion Matrix - Test Set 기준)
+                        </h3>
+                        
+                        <!-- 혼동행렬 그리드 -->
+                        <div class="grid grid-cols-3 gap-2 text-center items-center">
+                            <div></div>
+                            <div class="text-[11px] font-bold text-slate-500">실제 사망 (Actual 0)</div>
+                            <div class="text-[11px] font-bold text-slate-500">실제 생존 (Actual 1)</div>
+
+                            <div class="text-[11px] font-bold text-slate-500 text-right pr-2">예측 사망 (Pred 0)</div>
+                            <div class="bg-slate-100 p-4 rounded-xl border border-slate-200">
+                                <div class="text-lg font-black text-slate-700" id="matrixTN">0</div>
+                                <div class="text-[9px] text-slate-400 font-semibold">True Negative</div>
+                            </div>
+                            <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 text-rose-700">
+                                <div class="text-lg font-black" id="matrixFN">0</div>
+                                <div class="text-[9px] text-rose-400 font-semibold">False Negative</div>
+                            </div>
+
+                            <div class="text-[11px] font-bold text-slate-500 text-right pr-2">예측 생존 (Pred 1)</div>
+                            <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 text-rose-700">
+                                <div class="text-lg font-black" id="matrixFP">0</div>
+                                <div class="text-[9px] text-rose-400 font-semibold">False Positive</div>
+                            </div>
+                            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-emerald-700">
+                                <div class="text-lg font-black" id="matrixTP">0</div>
+                                <div class="text-[9px] text-emerald-400 font-semibold">True Positive</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 중요 변수 중요도 차트 (Feature Importance) -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                        <i class="fa-solid fa-chart-bar text-indigo-500"></i>
+                        의사결정 피처 기여도 분석 (Feature Importance, 단위: %)
+                    </h3>
+                    
+                    <div class="space-y-4" id="featureImportanceContainer">
+                        <!-- 동적으로 렌더링될 영역 -->
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-4">
+                        * 피처 중요도는 각 피처 분할 시 지니 불순도(Gini Impurity)가 감소한 기여량의 가중치 합을 의미하며 전체 합이 100%가 되도록 정규화했습니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab 4: AI 데이터 사이언스 코치 -->
+            <div id="panel-coach" class="tab-panel space-y-6 hidden">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-3 pb-3 border-b border-slate-100 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-inner">
+                            <i class="fa-solid fa-robot text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">AI 데이터 사이언스 튜터 피드백</h3>
+                            <p class="text-xs text-slate-400">Gemini AI가 당신의 현재 머신러닝 의사결정 모델을 분석해 드립니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- AI 빠른 프롬프트 추천 버튼 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
+                        <button onclick="requestAIReport('diagnose')" class="p-2.5 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition text-left text-xs text-indigo-800 flex items-center gap-2">
+                            <i class="fa-solid fa-user-doctor"></i>
+                            <span>현재 모델 과적합 자가 진단</span>
+                        </button>
+                        <button onclick="requestAIReport('features')" class="p-2.5 bg-teal-50 border border-teal-100 rounded-lg hover:bg-teal-100 transition text-left text-xs text-teal-800 flex items-center gap-2">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            <span>피처 중요도 결과 정밀 해석</span>
+                        </button>
+                        <button onclick="requestAIReport('improve')" class="p-2.5 bg-amber-50 border border-amber-100 rounded-lg hover:bg-amber-100 transition text-left text-xs text-amber-800 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                            <span>생존 확률 개선 방안 제안</span>
+                        </button>
+                    </div>
+
+                    <!-- 채팅 기록 역영 -->
+                    <div id="chatBox" class="bg-slate-900 text-slate-100 p-4 rounded-xl h-96 overflow-y-auto space-y-3 font-mono text-xs border border-slate-800">
+                        <div class="text-slate-500">// Gemini AI 데이터 사이언스 분석 시스템 터미널 준비 완료.</div>
+                        <div class="text-slate-400">코치: 반갑습니다! 타이타닉 의사결정트리 분석에 오신 것을 환영합니다. 위의 빠른 분석 버튼을 누르거나 아래에 분석에 관한 궁금한 사항을 직접 입력해보세요!</div>
+                    </div>
+
+                    <!-- 사용자 커스텀 대화 입력 폼 -->
+                    <div class="mt-4 flex gap-2">
+                        <input type="text" id="aiInput" placeholder="예: 의사결정트리의 깊이(Depth)를 늘리면 모델에 어떤 변화가 발생하나요?" 
+                               class="flex-grow px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+                        <button id="btnAiSend" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            보내기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- 데이터 리퍼런스 및 하단 푸터 -->
+    <footer class="bg-slate-900 text-slate-400 text-center py-6 px-4 mt-8 border-t border-slate-800 text-xs">
+        <p class="mb-2">의사결정트리 학습에 사용되는 데이터 세트는 Kaggle의 공식 Titanic 데이터셋 배포판에 근거한 대표적인 분포 통계를 바탕으로 합니다.</p>
+        <p class="text-slate-500">출처 데이터 참조: <a href="https://www.kaggle.com/c/titanic" target="_blank" class="text-indigo-400 hover:underline">Kaggle Titanic competition</a> | <a href="https://github.com/mwaskom/seaborn-data" target="_blank" class="text-indigo-400 hover:underline">Seaborn datasets repository</a></p>
+        <p class="mt-4 text-slate-600">&copy; 2026 Titanic Learning Lab. Powered by Pure JS CART Engine & Gemini AI.</p>
+    </footer>
+
+    <!-- 비즈니스 로직 스크립트 작성 -->
+    <script>
+        // 전역 상태 변수 관리
+        let titanicData = [];
+        let modelTree = null;
+        let testSet = [];
+        let trainSet = [];
+        let selectedPage = 1;
+        const itemsPerPage = 6;
+        let charts = {}; // 차트 인스턴스 저장소
+        const apiKey = ""; // Gemini API Key 주입 자리
+
+        // 1. Titanic 데이터셋 생성기 (Kaggle 및 Seaborn 데이터 분포 기준 합성 함수)
+        function generateTitanicDataset() {
+            const data = [];
+            const names_male = ["James Smith", "John Johnson", "Robert Williams", "Michael Brown", "William Jones", "David Miller", "Richard Davis", "Joseph Garcia", "Thomas Rodriguez", "Charles Wilson", "Daniel Martinez", "Matthew Anderson", "Donald Thomas", "Anthony Taylor", "Mark Moore", "Paul Martin", "Steven Jackson", "George Martin", "Kenneth Clark", "Edward Harrison"];
+            const names_female = ["Mary Smith", "Patricia Johnson", "Jennifer Williams", "Linda Brown", "Elizabeth Jones", "Barbara Miller", "Susan Davis", "Jessica Garcia", "Sarah Rodriguez", "Karen Wilson", "Nancy Martinez", "Lisa Anderson", "Betty Thomas", "Margaret Taylor", "Sandra Moore", "Ashley Martin", "Kimberly Jackson", "Emily Martin", "Donna Clark", "Michelle Harrison"];
+            
+            for (let i = 0; i < 500; i++) {
+                const sex = Math.random() < 0.38 ? 'female' : 'male';
+                const pclass = Math.random() < 0.22 ? 1 : (Math.random() < 0.28 ? 2 : 3);
+                
+                // 나이 세밀 가공 (아이 그룹, 중장년층)
+                let age;
+                if (Math.random() < 0.12) {
+                    age = Math.floor(Math.random() * 11) + 1; // 1 ~ 12세 어린이
+                } else {
+                    age = Math.floor(Math.random() * 55) + 13; // 13 ~ 68세 승객
+                }
+
+                // 요금 가공 (객실 등급과 비례)
+                let fare;
+                if (pclass === 1) fare = parseFloat((Math.random() * 180 + 55).toFixed(1));
+                else if (pclass === 2) fare = parseFloat((Math.random() * 25 + 12).toFixed(1));
+                else fare = parseFloat((Math.random() * 11 + 6.5).toFixed(1));
+
+                const sibsp = Math.random() < 0.7 ? 0 : (Math.random() < 0.85 ? 1 : Math.floor(Math.random() * 3));
+                const parch = Math.random() < 0.8 ? 0 : (Math.random() < 0.92 ? 1 : 2);
+
+                // 생존 결정 로직 (역사적 성향 기반 가중치 부여 후 판정)
+                let survivalProb = 0.12; // 기본 최저 확률 (남성, 3등석 등)
+                if (sex === 'female') {
+                    if (pclass === 1) survivalProb = 0.97;
+                    else if (pclass === 2) survivalProb = 0.89;
+                    else survivalProb = 0.49;
+                } else { // 남성
+                    if (age < 12) {
+                        if (pclass === 1 || pclass === 2) survivalProb = 0.78;
+                        else survivalProb = 0.35;
+                    } else {
+                        if (pclass === 1) survivalProb = 0.37;
+                        else if (pclass === 2) survivalProb = 0.16;
+                        else survivalProb = 0.11;
+                    }
+                }
+                
+                // 기타 인자 조정 (대가족은 구조율 다소 낮음, 요금이 비쌀수록 우대)
+                if (fare > 80) survivalProb += 0.04;
+                const familySize = sibsp + parch;
+                if (familySize > 0 && familySize < 4) survivalProb += 0.05; // 소가족은 시너지
+                else if (familySize >= 4) survivalProb -= 0.15; // 대가족은 대피 불리
+
+                survivalProb = Math.max(0.01, Math.min(0.99, survivalProb));
+                const survived = Math.random() < survivalProb ? 1 : 0;
+                
+                const randName = sex === 'female' ? names_female[Math.floor(Math.random() * names_female.length)] : names_male[Math.floor(Math.random() * names_male.length)];
+                
+                data.push({
+                    PassengerId: i + 1,
+                    Survived: survived,
+                    Pclass: pclass,
+                    Name: randName + " #" + (i + 1),
+                    Sex: sex,
+                    Age: age,
+                    SibSp: sibsp,
+                    Parch: parch,
+                    Fare: fare
+                });
+            }
+            return data;
+        }
+
+        // 2. 의사결정트리 (CART) 노드 및 훈련 클래스 엔진 구현
+        class DecisionTreeNode {
+            constructor(samples) {
+                this.samples = samples;
+                this.feature = null;
+                this.threshold = null;
+                this.isCategorical = false;
+                this.left = null;
+                this.right = null;
+                this.isLeaf = false;
+                this.prediction = null;
+                this.probability = 0;
+                this.gini = 0;
+                this.numSurvived = 0;
+                this.total = samples.length;
+            }
+        }
+
+        function calculateGini(samples) {
+            if (samples.length === 0) return 0;
+            const total = samples.length;
+            const survived = samples.filter(s => s.Survived === 1).length;
+            const p1 = survived / total;
+            const p0 = 1 - p1;
+            return 1 - (p1 * p1 + p0 * p0);
+        }
+
+        function buildCART(samples, depth, maxDepth, minSamplesSplit) {
+            const node = new DecisionTreeNode(samples);
+            node.gini = calculateGini(samples);
+            node.numSurvived = samples.filter(s => s.Survived === 1).length;
+            node.probability = node.total > 0 ? (node.numSurvived / node.total) : 0;
+            node.prediction = node.probability >= 0.5 ? 1 : 0;
+
+            // 기저 조건 (중단점 도달)
+            if (depth >= maxDepth || samples.length < minSamplesSplit || node.gini === 0) {
+                node.isLeaf = true;
+                return node;
+            }
+
+            let bestGain = -1;
+            let bestFeature = null;
+            let bestThreshold = null;
+            let bestIsCategorical = false;
+            let bestLeftSamples = [];
+            let bestRightSamples = [];
+
+            const features = ['Sex', 'Pclass', 'Age', 'Fare', 'SibSp', 'Parch'];
+
+            for (const feature of features) {
+                const isCat = (feature === 'Sex');
+                
+                if (isCat) {
+                    // 범주형 변수: 'female' 여부 분할
+                    const left = samples.filter(s => s[feature] === 'female');
+                    const right = samples.filter(s => s[feature] !== 'female');
+                    
+                    if (left.length === 0 || right.length === 0) continue;
+
+                    const giniL = calculateGini(left);
+                    const giniR = calculateGini(right);
+                    const weightedGini = (left.length / samples.length) * giniL + (right.length / samples.length) * giniR;
+                    const gain = node.gini - weightedGini;
+
+                    if (gain > bestGain) {
+                        bestGain = gain;
+                        bestFeature = feature;
+                        bestThreshold = 'female';
+                        bestIsCategorical = true;
+                        bestLeftSamples = left;
+                        bestRightSamples = right;
+                    }
+                } else {
+                    // 수치형 변수: 최적 절단점(threshold) 탐색
+                    const uniqueVals = [...new Set(samples.map(s => s[feature]))].sort((a, b) => a - b);
+                    if (uniqueVals.length < 2) continue;
+
+                    // 과한 루프를 방지하기 위해 최대 12개의 사분위수 분할 후보 검증
+                    let testThresholds = [];
+                    if (uniqueVals.length <= 12) {
+                        for (let k = 0; k < uniqueVals.length - 1; k++) {
+                            testThresholds.push((uniqueVals[k] + uniqueVals[k+1]) / 2);
+                        }
+                    } else {
+                        for (let p = 1; p <= 10; p++) {
+                            const idx = Math.floor((uniqueVals.length - 1) * (p / 11));
+                            testThresholds.push(uniqueVals[idx]);
+                        }
+                    }
+
+                    for (const thresh of testThresholds) {
+                        const left = samples.filter(s => s[feature] <= thresh);
+                        const right = samples.filter(s => s[feature] > thresh);
+
+                        if (left.length === 0 || right.length === 0) continue;
+
+                        const giniL = calculateGini(left);
+                        const giniR = calculateGini(right);
+                        const weightedGini = (left.length / samples.length) * giniL + (right.length / samples.length) * giniR;
+                        const gain = node.gini - weightedGini;
+
+                        if (gain > bestGain) {
+                            bestGain = gain;
+                            bestFeature = feature;
+                            bestThreshold = thresh;
+                            bestIsCategorical = false;
+                            bestLeftSamples = left;
+                            bestRightSamples = right;
+                        }
+                    }
+                }
+            }
+
+            // Gini 지수 개선이 없는 경우 리프 노드로 처리
+            if (bestGain <= 0.0001) {
+                node.isLeaf = true;
+                return node;
+            }
+
+            // 최종 선정된 피처 분할 적용
+            node.feature = bestFeature;
+            node.threshold = bestThreshold;
+            node.isCategorical = bestIsCategorical;
+            node.left = buildCART(bestLeftSamples, depth + 1, maxDepth, minSamplesSplit);
+            node.right = buildCART(bestRightSamples, depth + 1, maxDepth, minSamplesSplit);
+
+            return node;
+        }
+
+        // 3. 테스트 탐색 트래킹 및 예측 계산 함수
+        function predictPassenger(node, passenger, path = []) {
+            path.push(node);
+            if (node.isLeaf) {
+                return { prediction: node.prediction, probability: node.probability, path };
+            }
+            const value = passenger[node.feature];
+            let goToLeft = false;
+
+            if (node.isCategorical) {
+                if (value === node.threshold) goToLeft = true;
+            } else {
+                if (value <= node.threshold) goToLeft = true;
+            }
+
+            if (goToLeft) {
+                return predictPassenger(node.left, passenger, path);
+            } else {
+                return predictPassenger(node.right, passenger, path);
+            }
+        }
+
+        // 4. 피처 기여도(Feature Importance) 분석 함수
+        function calculateFeatureImportances(root, totalSamples) {
+            const importances = { Sex: 0, Pclass: 0, Age: 0, Fare: 0, SibSp: 0, Parch: 0 };
+            
+            function traverse(node) {
+                if (node.isLeaf || !node.feature) return;
+                const weight = node.total / totalSamples;
+                
+                const leftG = node.left ? node.left.gini : 0;
+                const rightG = node.right ? node.right.gini : 0;
+                const leftW = node.left ? (node.left.total / node.total) : 0;
+                const rightW = node.right ? (node.right.total / node.total) : 0;
+                
+                const gain = node.gini - (leftW * leftG + rightW * rightG);
+                importances[node.feature] += gain * weight;
+                
+                if (node.left) traverse(node.left);
+                if (node.right) traverse(node.right);
+            }
+            
+            traverse(root);
+
+            // 전체 합 100% 비례 처리
+            const sum = Object.values(importances).reduce((a, b) => a + b, 0);
+            if (sum > 0) {
+                for (const key in importances) {
+                    importances[key] = parseFloat(((importances[key] / sum) * 100).toFixed(1));
+                }
+            }
+            return importances;
+        }
+
+        // 5. 트리 레이아웃 좌표 할당 (SVG 시각화용)
+        function assignTreeCoords(node, left, right, y, yStep, coords = []) {
+            if (!node) return;
+            const x = (left + right) / 2;
+            coords.push({ node, x, y });
+            
+            if (!node.isLeaf) {
+                const innerSpacing = (right - left) * 0.05;
+                assignTreeCoords(node.left, left, x - innerSpacing, y + yStep, yStep, coords);
+                assignTreeCoords(node.right, x + innerSpacing, right, y + yStep, yStep, coords);
+            }
+            return coords;
+        }
+
+        // 6. 타이타닉 원본 데이터 기반 EDA 시각화 갱신
+        function renderCharts() {
+            // 차트 1: 성별 생존 여부
+            const mTotal = titanicData.filter(p => p.Sex === 'male').length;
+            const mSurvived = titanicData.filter(p => p.Sex === 'male' && p.Survived === 1).length;
+            const fTotal = titanicData.filter(p => p.Sex === 'female').length;
+            const fSurvived = titanicData.filter(p => p.Sex === 'female' && p.Survived === 1).length;
+
+            const ctxSex = document.getElementById('chartSex').getContext('2d');
+            if (charts.sex) charts.sex.destroy();
+            charts.sex = new Chart(ctxSex, {
+                type: 'bar',
+                data: {
+                    labels: ['남성 (Male)', '여성 (Female)'],
+                    datasets: [
+                        {
+                            label: '사망',
+                            data: [mTotal - mSurvived, fTotal - fSurvived],
+                            backgroundColor: '#ef4444'
+                        },
+                        {
+                            label: '생존',
+                            data: [mSurvived, fSurvived],
+                            backgroundColor: '#10b981'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { stacked: true }, x: { stacked: true } }
+                }
+            });
+
+            // 차트 2: Pclass별 생존율
+            const p1Total = titanicData.filter(p => p.Pclass === 1).length;
+            const p1Survived = titanicData.filter(p => p.Pclass === 1 && p.Survived === 1).length;
+            const p2Total = titanicData.filter(p => p.Pclass === 2).length;
+            const p2Survived = titanicData.filter(p => p.Pclass === 2 && p.Survived === 1).length;
+            const p3Total = titanicData.filter(p => p.Pclass === 3).length;
+            const p3Survived = titanicData.filter(p => p.Pclass === 3 && p.Survived === 1).length;
+
+            const ctxClass = document.getElementById('chartClass').getContext('2d');
+            if (charts.class) charts.class.destroy();
+            charts.class = new Chart(ctxClass, {
+                type: 'doughnut',
+                data: {
+                    labels: ['1등실 생존율', '2등실 생존율', '3등실 생존율'],
+                    datasets: [{
+                        data: [
+                            parseFloat(((p1Survived / p1Total) * 100).toFixed(1)),
+                            parseFloat(((p2Survived / p2Total) * 100).toFixed(1)),
+                            parseFloat(((p3Survived / p3Total) * 100).toFixed(1))
+                        ],
+                        backgroundColor: ['#eab308', '#3b82f6', '#a855f7']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw}%` } }
+                    }
+                }
+            });
+        }
+
+        // 7. 데이터셋 리스트 테이블 바인딩 & 페이지네이션
+        function renderTable() {
+            const tableBody = document.getElementById('tableBody');
+            const searchVal = document.getElementById('tableSearch').value.toLowerCase();
+            
+            const filtered = titanicData.filter(p => p.Name.toLowerCase().includes(searchVal));
+            const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+            
+            if (selectedPage > totalPages) selectedPage = totalPages;
+            
+            const start = (selectedPage - 1) * itemsPerPage;
+            const paginated = filtered.slice(start, start + itemsPerPage);
+            
+            tableBody.innerHTML = '';
+            
+            if (paginated.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-400">일치하는 승객 데이터가 존재하지 않습니다.</td></tr>`;
+                return;
+            }
+
+            paginated.forEach(p => {
+                const survivedBadge = p.Survived === 1 
+                    ? `<span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">💖 구조</span>`
+                    : `<span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-bold">💀 사망</span>`;
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50 transition-colors border-b border-slate-50';
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-500">${p.PassengerId}</td>
+                    <td class="p-3">${survivedBadge}</td>
+                    <td class="p-3 font-bold text-slate-700">${p.Pclass}등급</td>
+                    <td class="p-3 font-medium">${p.Name}</td>
+                    <td class="p-3">${p.Sex === 'female' ? '여성' : '남성'}</td>
+                    <td class="p-3">${p.Age}세</td>
+                    <td class="p-3 text-slate-600">${p.SibSp}명 / ${p.Parch}명</td>
+                    <td class="p-3 font-semibold text-slate-700">£${p.Fare}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById('tablePageInfo').innerText = `${selectedPage} / ${totalPages} 페이지 (총 ${filtered.length}명)`;
+        }
+
+        // 8. 탭 레이아웃 전환 핸들러
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+
+            document.getElementById(`tab-${tabName}`).classList.add('active-tab');
+            document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+
+            // 트리를 화면에 그리는 타이밍 제어
+            if (tabName === 'tree') {
+                renderTreeDiagram();
+            }
+        };
+
+        // 9. 머신러닝 모델 학습 메인 메소드
+        function trainModel() {
+            const trainRatio = parseInt(document.getElementById('trainRatio').value) / 100;
+            const maxDepth = parseInt(document.getElementById('maxDepth').value);
+            const minSplit = parseInt(document.getElementById('minSplit').value);
+
+            // 데이터셋 셔플링 후 분할
+            const shuffled = [...titanicData].sort(() => Math.random() - 0.5);
+            const trainSize = Math.floor(shuffled.length * trainRatio);
+            
+            trainSet = shuffled.slice(0, trainSize);
+            testSet = shuffled.slice(trainSize);
+
+            // CART 트리 구축 실행
+            modelTree = buildCART(trainSet, 0, maxDepth, minSplit);
+
+            // 지표 도출 및 갱신
+            updateDashboardMetrics();
+            updateLivePrediction();
+        }
+
+        // 10. 중요 지표 카드 갱신
+        function updateDashboardMetrics() {
+            // 통계
+            const total = titanicData.length;
+            const survived = titanicData.filter(p => p.Survived === 1).length;
+            const avgFare = titanicData.reduce((acc, p) => acc + p.Fare, 0) / total;
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statSurvived').innerText = survived + "명";
+            document.getElementById('statSurvivalRate').innerText = ((survived/total)*100).toFixed(1) + "%";
+            document.getElementById('statAvgFare').innerText = "£" + avgFare.toFixed(1);
+
+            // 모델 평가지표 계산 (Test Set 기준)
+            let correctTrain = 0;
+            trainSet.forEach(p => {
+                const res = predictPassenger(modelTree, p);
+                if (res.prediction === p.Survived) correctTrain++;
+            });
+            const trainAcc = correctTrain / trainSet.length;
+
+            let tp = 0, fp = 0, tn = 0, fn = 0;
+            testSet.forEach(p => {
+                const res = predictPassenger(modelTree, p);
+                if (res.prediction === p.Survived) {
+                    if (p.Survived === 1) tp++;
+                    else tn++;
+                } else {
+                    if (p.Survived === 1) fn++;
+                    else fp++;
+                }
+            });
+
+            const testAcc = (tp + tn) / testSet.length;
+            const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
+            const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+            const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+
+            // UI 바인딩
+            document.getElementById('metricTrainAcc').innerText = (trainAcc * 100).toFixed(1) + "%";
+            document.getElementById('barTrainAcc').style.width = (trainAcc * 100) + "%";
+
+            document.getElementById('metricTestAcc').innerText = (testAcc * 100).toFixed(1) + "%";
+            document.getElementById('barTestAcc').style.width = (testAcc * 100) + "%";
+
+            document.getElementById('metricPrecision').innerText = (precision * 100).toFixed(1) + "%";
+            document.getElementById('metricRecall').innerText = (recall * 100).toFixed(1) + "%";
+            document.getElementById('metricF1').innerText = (f1 * 100).toFixed(1) + "%";
+
+            // 오차 행렬
+            document.getElementById('matrixTN').innerText = tn;
+            document.getElementById('matrixFP').innerText = fp;
+            document.getElementById('matrixFN').innerText = fn;
+            document.getElementById('matrixTP').innerText = tp;
+
+            // 변수(피처) 중요도 계산 및 렌더링
+            const importances = calculateFeatureImportances(modelTree, trainSet.length);
+            const impContainer = document.getElementById('featureImportanceContainer');
+            impContainer.innerHTML = '';
+
+            const koreanFeatureMap = {
+                'Sex': '승객 성별 (Sex)',
+                'Pclass': '객실 등급 (Pclass)',
+                'Age': '승객 나이 (Age)',
+                'Fare': '승선 요금 (Fare)',
+                'SibSp': '형제 및 배우자 수 (SibSp)',
+                'Parch': '부모 및 자녀 수 (Parch)'
+            };
+
+            const sortedFeatures = Object.entries(importances).sort((a,b) => b[1] - a[1]);
+            sortedFeatures.forEach(([feat, val]) => {
+                const barWidth = Math.max(2, val);
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-4 text-xs';
+                row.innerHTML = `
+                    <div class="w-36 font-semibold text-slate-700">${koreanFeatureMap[feat] || feat}</div>
+                    <div class="flex-grow bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div class="h-full bg-indigo-600 rounded-full" style="width: ${barWidth}%"></div>
+                    </div>
+                    <div class="w-12 text-right font-bold text-slate-800">${val}%</div>
+                `;
+                impContainer.appendChild(row);
+            });
+        }
+
+        // 11. 가상 승객 설정값 추적 및 실시간 예측 반영
+        function updateLivePrediction() {
+            const sex = document.getElementById('predSex').value;
+            const pclass = parseInt(document.getElementById('predPclass').value);
+            const age = parseInt(document.getElementById('predAge').value);
+            const fare = parseFloat(document.getElementById('predFare').value);
+            const sibsp = parseInt(document.getElementById('predSibSp').value);
+            const parch = parseInt(document.getElementById('predParch').value);
+
+            // 가상 승객 객체 빌드
+            const mockPassenger = { Sex: sex, Pclass: pclass, Age: age, Fare: fare, SibSp: sibsp, Parch: parch };
+            const result = predictPassenger(modelTree, mockPassenger);
+
+            // UI 갱신 (사망/생존 컬러링)
+            const resultCardBg = document.getElementById('resultCardBg');
+            const resultText = document.getElementById('predictResultText');
+            const resultIcon = document.getElementById('predictResultIcon');
+            const progressBar = document.getElementById('predictProgressBar');
+            const probabilityText = document.getElementById('predictProbability');
+
+            const survivalPercent = (result.probability * 100).toFixed(1);
+            probabilityText.innerText = survivalPercent + "%";
+
+            if (result.prediction === 1) {
+                resultCardBg.className = "mt-6 p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 flex flex-col items-center justify-center";
+                resultText.innerText = "생존 예측";
+                resultText.className = "text-2xl font-black text-emerald-700";
+                resultIcon.innerText = "💖";
+                progressBar.className = "h-full bg-emerald-500 transition-all duration-500";
+                progressBar.style.width = survivalPercent + "%";
+                probabilityText.className = "font-bold text-emerald-600";
+            } else {
+                resultCardBg.className = "mt-6 p-4 rounded-xl border border-rose-100 bg-rose-50/50 flex flex-col items-center justify-center";
+                resultText.innerText = "사망 예측";
+                resultText.className = "text-2xl font-black text-rose-700";
+                resultIcon.innerText = "💀";
+                progressBar.className = "h-full bg-rose-500 transition-all duration-500";
+                progressBar.style.width = survivalPercent + "%";
+                probabilityText.className = "font-bold text-rose-600";
+            }
+
+            // 만약 현재 탭이 '의사결정트리 맵'일 경우, 활성 경로가 업데이트되도록 리렌더링
+            const activeTab = document.querySelector('.active-tab');
+            if (activeTab && activeTab.id === 'tab-tree') {
+                renderTreeDiagram(result.path);
+            }
+        }
+
+        // 12. 의사결정트리 SVG 렌더링 함수
+        function renderTreeDiagram(activePath = []) {
+            const svg = document.getElementById('treeSvg');
+            svg.innerHTML = ''; // 초기화
+
+            if (!modelTree) return;
+
+            const width = 1000;
+            const height = 500;
+            const ySpacing = 105;
+            
+            // 전역 좌표 할당
+            const coordsList = assignTreeCoords(modelTree, 20, width - 20, 50, ySpacing);
+            
+            // 액티브 노드 아이디 세트 구축
+            const activeNodes = new Set(activePath);
+
+            // 선(경로) 먼저 그리기 (노드 아래 배치)
+            coordsList.forEach(({ node, x, y }) => {
+                if (!node.isLeaf) {
+                    const leftChild = coordsList.find(c => c.node === node.left);
+                    const rightChild = coordsList.find(c => c.node === node.right);
+
+                    if (leftChild) {
+                        const isLeftPathActive = activeNodes.has(node) && activeNodes.has(node.left);
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", x);
+                        line.setAttribute("y1", y + 25);
+                        line.setAttribute("x2", leftChild.x);
+                        line.setAttribute("y2", leftChild.y - 25);
+                        
+                        if (isLeftPathActive) {
+                            line.setAttribute("stroke", "#f59e0b");
+                            line.setAttribute("stroke-width", "4");
+                            line.setAttribute("class", "animate-dash");
+                        } else {
+                            line.setAttribute("stroke", "#475569");
+                            line.setAttribute("stroke-width", "2");
+                        }
+                        svg.appendChild(line);
+
+                        // 분기 텍스트 그리기 (Yes / No)
+                        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        label.setAttribute("x", (x + leftChild.x) / 2 - 12);
+                        label.setAttribute("y", (y + 25 + leftChild.y - 25) / 2 + 3);
+                        label.setAttribute("fill", isLeftPathActive ? "#fbbf24" : "#94a3b8");
+                        label.setAttribute("font-size", "10");
+                        label.setAttribute("font-weight", "bold");
+                        label.textContent = "YES";
+                        svg.appendChild(label);
+                    }
+
+                    if (rightChild) {
+                        const isRightPathActive = activeNodes.has(node) && activeNodes.has(node.right);
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", x);
+                        line.setAttribute("y1", y + 25);
+                        line.setAttribute("x2", rightChild.x);
+                        line.setAttribute("y2", rightChild.y - 25);
+
+                        if (isRightPathActive) {
+                            line.setAttribute("stroke", "#f59e0b");
+                            line.setAttribute("stroke-width", "4");
+                            line.setAttribute("class", "animate-dash");
+                        } else {
+                            line.setAttribute("stroke", "#475569");
+                            line.setAttribute("stroke-width", "2");
+                        }
+                        svg.appendChild(line);
+
+                        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        label.setAttribute("x", (x + rightChild.x) / 2 + 5);
+                        label.setAttribute("y", (y + 25 + rightChild.y - 25) / 2 + 3);
+                        label.setAttribute("fill", isRightPathActive ? "#fbbf24" : "#94a3b8");
+                        label.setAttribute("font-size", "10");
+                        label.setAttribute("font-weight", "bold");
+                        label.textContent = "NO";
+                        svg.appendChild(label);
+                    }
+                }
+            });
+
+            // 노드 렌더링
+            coordsList.forEach(({ node, x, y }) => {
+                const nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                const isActive = activeNodes.has(node);
+
+                if (node.isLeaf) {
+                    // Leaf Node: 원형 또는 알약 모양
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    circle.setAttribute("x", x - 55);
+                    circle.setAttribute("y", y - 25);
+                    circle.setAttribute("width", 110);
+                    circle.setAttribute("height", 50);
+                    circle.setAttribute("rx", "12");
+                    circle.setAttribute("ry", "12");
+
+                    const color = node.prediction === 1 ? "#065f46" : "#7f1d1d"; // 초록/빨강 계열
+                    circle.setAttribute("fill", color);
+                    circle.setAttribute("stroke", isActive ? "#fbbf24" : "#475569");
+                    circle.setAttribute("stroke-width", isActive ? "3" : "1.5");
+                    nodeGroup.appendChild(circle);
+
+                    // 텍스트 기입
+                    const text1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text1.setAttribute("x", x);
+                    text1.setAttribute("y", y - 6);
+                    text1.setAttribute("text-anchor", "middle");
+                    text1.setAttribute("font-size", "11");
+                    text1.setAttribute("font-weight", "bold");
+                    text1.setAttribute("fill", "#ffffff");
+                    text1.textContent = node.prediction === 1 ? "💖 생존 예측" : "💀 사망 예측";
+                    nodeGroup.appendChild(text1);
+
+                    const text2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text2.setAttribute("x", x);
+                    text2.setAttribute("y", y + 8);
+                    text2.setAttribute("text-anchor", "middle");
+                    text2.setAttribute("font-size", "9");
+                    text2.setAttribute("fill", "#e2e8f0");
+                    text2.textContent = `확률: ${(node.probability * 100).toFixed(0)}% (${node.total}명)`;
+                    nodeGroup.appendChild(text2);
+
+                    const text3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text3.setAttribute("x", x);
+                    text3.setAttribute("y", y + 18);
+                    text3.setAttribute("text-anchor", "middle");
+                    text3.setAttribute("font-size", "8");
+                    text3.setAttribute("fill", "#cbd5e1");
+                    text3.textContent = `Gini: ${node.gini.toFixed(3)}`;
+                    nodeGroup.appendChild(text3);
+
+                } else {
+                    // Split Node: 직사각형 카드
+                    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    rect.setAttribute("x", x - 75);
+                    rect.setAttribute("y", y - 28);
+                    rect.setAttribute("width", 150);
+                    rect.setAttribute("height", 56);
+                    rect.setAttribute("rx", "6");
+                    rect.setAttribute("ry", "6");
+                    rect.setAttribute("fill", "#1e293b");
+                    rect.setAttribute("stroke", isActive ? "#fbbf24" : "#475569");
+                    rect.setAttribute("stroke-width", isActive ? "3" : "1.5");
+                    nodeGroup.appendChild(rect);
+
+                    // 한글 피처 룰 파싱
+                    let ruleText = "";
+                    if (node.feature === 'Sex') ruleText = "성별 == 여성?";
+                    else if (node.feature === 'Pclass') ruleText = `객실 등급 <= ${node.threshold}`;
+                    else if (node.feature === 'Age') ruleText = `나이 <= ${node.threshold}세`;
+                    else if (node.feature === 'Fare') ruleText = `요금 <= £${node.threshold}`;
+                    else if (node.feature === 'SibSp') ruleText = `형제/배우자 <= ${node.threshold}명`;
+                    else if (node.feature === 'Parch') ruleText = `부모/자녀 <= ${node.threshold}명`;
+
+                    const text1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text1.setAttribute("x", x);
+                    text1.setAttribute("y", y - 12);
+                    text1.setAttribute("text-anchor", "middle");
+                    text1.setAttribute("font-size", "11");
+                    text1.setAttribute("font-weight", "bold");
+                    text1.setAttribute("fill", isActive ? "#fbbf24" : "#f8fafc");
+                    text1.textContent = ruleText;
+                    nodeGroup.appendChild(text1);
+
+                    const text2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text2.setAttribute("x", x);
+                    text2.setAttribute("y", y + 4);
+                    text2.setAttribute("text-anchor", "middle");
+                    text2.setAttribute("font-size", "9");
+                    text2.setAttribute("fill", "#cbd5e1");
+                    text2.textContent = `지니 계수: ${node.gini.toFixed(3)}`;
+                    nodeGroup.appendChild(text2);
+
+                    const text3 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text3.setAttribute("x", x);
+                    text3.setAttribute("y", y + 16);
+                    text3.setAttribute("text-anchor", "middle");
+                    text3.setAttribute("font-size", "9");
+                    text3.setAttribute("fill", "#94a3b8");
+                    text3.textContent = `샘플 수: ${node.total}명 (생존: ${node.numSurvived})`;
+                    nodeGroup.appendChild(text3);
+                }
+
+                svg.appendChild(nodeGroup);
+            });
+        }
+
+        // 13. Gemini API 기반 AI 분석가 연동 및 분석 보고서 생성
+        async function fetchAIAnalysis(promptText) {
+            const systemPrompt = "너는 타이타닉 데이터 세트와 의사결정트리(Decision Tree) 머신러닝에 정통한 데이터 사이언스 교수이자 친절한 멘토야. 사용자가 학습시킨 의사결정트리 파라미터, 정확도 등의 평가지표를 확인하고 친절하고 유용하며 고도로 전문적인 분석 리포트를 한국어로 반환해줘. 마크다운 형식을 적절히 갖추고 분석에는 논리적인 통계 근거를 제시해야 해.";
+            
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error("API 요청 실패");
+            }
+
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 수신하지 못했습니다.";
+        }
+
+        // 빠른 AI 요청 트리거
+        window.requestAIReport = async function(type) {
+            const chatBox = document.getElementById('chatBox');
+            let query = "";
+
+            // 현재 트리 및 지표 상태를 정리
+            const trainAcc = document.getElementById('metricTrainAcc').innerText;
+            const testAcc = document.getElementById('metricTestAcc').innerText;
+            const maxDepth = document.getElementById('maxDepth').value;
+            const minSplit = document.getElementById('minSplit').value;
+            
+            const stateSummary = `현재 사용자의 모델 환경 설정:\n- 훈련 세트 정확도: ${trainAcc}\n- 검증용 테스트 세트 정확도: ${testAcc}\n- 설정한 트리 최대 깊이(Max Depth): ${maxDepth}\n- 최소 분할 샘플 수(Min Split): ${minSplit}\n`;
+
+            if (type === 'diagnose') {
+                query = `${stateSummary}\n위 정보를 보고 현재 의사결정트리 모델의 '과적합(Overfitting)' 수준을 상세히 자가 진단해주고 개선하기 위한 하이퍼파라미터 조언을 해줘.`;
+                appendMessage("user", "현재 의사결정트리 모델 과적합 수준 자가 진단 보고서 작성 요청");
+            } else if (type === 'features') {
+                // 피처 기여도 문자열 변환
+                const items = [];
+                document.querySelectorAll('#featureImportanceContainer > div').forEach(el => {
+                    items.push(el.innerText.replace(/\n/g, ' '));
+                });
+                query = `${stateSummary}\n계산된 피처 중요도 결과:\n${items.join('\n')}\n위 피처들의 기여량 수치를 역사적 배경과 알고리즘 관점에서 정밀 해석해줘.`;
+                appendMessage("user", "의사결정 피처 중요도 분석 결과 해석 요청");
+            } else if (type === 'improve') {
+                query = `${stateSummary}\n타이타닉 승객의 생존율을 예측하는 이 의사결정트리 알고리즘의 예측력을 추가로 높이기 위해, 도메인 지식 기반의 '피처 엔지니어링(Feature Engineering)' 관점과 전처리 관점의 구체적인 개선안을 제안해줘.`;
+                appendMessage("user", "의사결정트리 모델 예측력 극대화 방안 요청");
+            }
+
+            appendMessage("system", "Gemini AI가 모델 상태를 전송받아 정밀 분석하고 있습니다. 잠시만 기다려주세요...");
+
+            let retryCount = 0;
+            const maxRetries = 5;
+            let delay = 1000;
+
+            async function runWithRetry() {
+                try {
+                    const reply = await fetchAIAnalysis(query);
+                    // 대기 메시지 지우고 실제 대답 바인딩
+                    removeLastSystemMessage();
+                    appendMessage("coach", reply);
+                } catch (error) {
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(runWithRetry, delay);
+                        delay *= 2; // Exponential Backoff
+                    } else {
+                        removeLastSystemMessage();
+                        appendMessage("system", "오류가 발생했습니다: 지속적인 네트워크 차단 또는 API 제한 상태입니다. 나중에 다시 시도해주세요.");
+                    }
+                }
+            }
+
+            runWithRetry();
+        };
+
+        // 채팅 출력 헬퍼 함수들
+        function appendMessage(sender, text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgDiv = document.createElement('div');
+            
+            if (sender === "user") {
+                msgDiv.className = "text-indigo-300 pl-2 border-l-2 border-indigo-500 py-1";
+                msgDiv.innerHTML = `<span class="font-bold">[USER]:</span> ${text}`;
+            } else if (sender === "coach") {
+                msgDiv.className = "text-slate-100 bg-slate-800 p-3 rounded-lg border border-slate-700 leading-relaxed";
+                // 심플 마크다운 개행 처리
+                const formatted = text
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code class="bg-slate-900 px-1 py-0.5 rounded text-rose-400">$1</code>');
+                msgDiv.innerHTML = `<span class="font-bold text-teal-400">🤖 AI 코치:</span><br>${formatted}`;
+            } else {
+                msgDiv.className = "text-yellow-400 font-bold italic py-1 temp-system-msg";
+                msgDiv.innerHTML = `[SYSTEM]: ${text}`;
+            }
+            
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function removeLastSystemMessage() {
+            const systemMsgs = document.querySelectorAll('.temp-system-msg');
+            if (systemMsgs.length > 0) {
+                systemMsgs[systemMsgs.length - 1].remove();
+            }
+        }
+
+        // 사용자 임의 텍스트 질문 처리
+        async function handleCustomAISend() {
+            const input = document.getElementById('aiInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+            appendMessage("user", text);
+            appendMessage("system", "질문을 분석 중입니다...");
+
+            const trainAcc = document.getElementById('metricTrainAcc').innerText;
+            const testAcc = document.getElementById('metricTestAcc').innerText;
+            const prompt = `사용자의 머신러닝 상태:\n- 학습용 정확도: ${trainAcc}\n- 검증용 정확도: ${testAcc}\n\n사용자의 개별 질문:\n${text}`;
+
+            let retryCount = 0;
+            const maxRetries = 5;
+            let delay = 1000;
+
+            async function runWithRetry() {
+                try {
+                    const reply = await fetchAIAnalysis(prompt);
+                    removeLastSystemMessage();
+                    appendMessage("coach", reply);
+                } catch (error) {
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(runWithRetry, delay);
+                        delay *= 2;
+                    } else {
+                        removeLastSystemMessage();
+                        appendMessage("system", "Gemini API를 호출하는 도중 장애가 발생했습니다. 나중에 다시 실행해주세요.");
+                    }
+                }
+            }
+            runWithRetry();
+        }
+
+        // 14. 이벤트 리스너 및 이니셜라이저 세팅
+        function setupEventListeners() {
+            // 슬라이더 값 실시간 연동 표시 및 자동 재학습 처리
+            document.getElementById('trainRatio').addEventListener('input', function(e) {
+                document.getElementById('trainRatioVal').innerText = e.target.value + "%";
+            });
+            document.getElementById('maxDepth').addEventListener('input', function(e) {
+                document.getElementById('maxDepthVal').innerText = e.target.value;
+            });
+            document.getElementById('minSplit').addEventListener('input', function(e) {
+                document.getElementById('minSplitVal').innerText = e.target.value + "명";
+            });
+
+            // 승객 훈련 변경 버튼
+            document.getElementById('btnTrain').addEventListener('click', () => {
+                trainModel();
+                renderCharts();
+                renderTable();
+            });
+
+            // 예측 슬라이더 바인딩 및 실시간 예측 연동
+            document.getElementById('predSex').addEventListener('change', updateLivePrediction);
+            document.getElementById('predPclass').addEventListener('change', updateLivePrediction);
+            document.getElementById('predAge').addEventListener('input', function(e) {
+                document.getElementById('predAgeVal').innerText = e.target.value + "세";
+                updateLivePrediction();
+            });
+            document.getElementById('predFare').addEventListener('input', function(e) {
+                document.getElementById('predFareVal').innerText = "£" + parseFloat(e.target.value).toFixed(1);
+                updateLivePrediction();
+            });
+            document.getElementById('predSibSp').addEventListener('input', updateLivePrediction);
+            document.getElementById('predParch').addEventListener('input', updateLivePrediction);
+
+            // 검색 필드 리스너
+            document.getElementById('tableSearch').addEventListener('input', () => {
+                selectedPage = 1;
+                renderTable();
+            });
+
+            // 페이지 버튼
+            document.getElementById('btnPrevPage').addEventListener('click', () => {
+                if (selectedPage > 1) {
+                    selectedPage--;
+                    renderTable();
+                }
+            });
+            document.getElementById('btnNextPage').addEventListener('click', () => {
+                const searchVal = document.getElementById('tableSearch').value.toLowerCase();
+                const filtered = titanicData.filter(p => p.Name.toLowerCase().includes(searchVal));
+                const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+                if (selectedPage < totalPages) {
+                    selectedPage++;
+                    renderTable();
+                }
+            });
+
+            // 나만의 맞춤 가상 승객 추가 처리 이벤트
+            document.getElementById('btnAddPassenger').addEventListener('click', () => {
+                const name = document.getElementById('addName').value.trim() || "Virtual Guest";
+                const sex = document.getElementById('addSex').value;
+                const pclass = parseInt(document.getElementById('addPclass').value);
+                const age = parseInt(document.getElementById('addAge').value) || 25;
+                const fare = parseFloat(document.getElementById('addFare').value) || 15;
+                const survived = parseInt(document.querySelector('input[name="addSurvived"]:checked').value);
+
+                const newPassenger = {
+                    PassengerId: titanicData.length + 1,
+                    Survived: survived,
+                    Pclass: pclass,
+                    Name: `${name} (가상)`,
+                    Sex: sex,
+                    Age: age,
+                    SibSp: 0,
+                    Parch: 0,
+                    Fare: fare
+                };
+
+                // 전역 데이터셋에 추가 후 화면과 머신러닝 리프레시
+                titanicData.unshift(newPassenger); // 리스트 상단 노출을 위해 맨 앞으로 삽입
+                selectedPage = 1;
+
+                // 성공 알림 UI 변경
+                const originalBtn = document.getElementById('btnAddPassenger').innerHTML;
+                document.getElementById('btnAddPassenger').innerHTML = `<i class="fa-solid fa-circle-check"></i> 등록 성공!`;
+                document.getElementById('btnAddPassenger').classList.replace('bg-indigo-600', 'bg-emerald-600');
+
+                setTimeout(() => {
+                    document.getElementById('btnAddPassenger').innerHTML = originalBtn;
+                    document.getElementById('btnAddPassenger').classList.replace('bg-emerald-600', 'bg-indigo-600');
+                }, 1500);
+
+                // 이름 폼 리셋
+                document.getElementById('addName').value = '';
+
+                // 전체 재렌더링 및 훈련
+                trainModel();
+                renderCharts();
+                renderTable();
+            });
+
+            // AI 질문 전송 엔터 키 이벤트 바인딩
+            document.getElementById('btnAiSend').addEventListener('click', handleCustomAISend);
+            document.getElementById('aiInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') handleCustomAISend();
+            });
+
+            // 경로 리셋 버튼
+            document.getElementById('btnZoomFit').addEventListener('click', () => {
+                updateLivePrediction();
+            });
+        }
+
+        // 15. 초기 구동 진입점 (On Load)
+        window.onload = function() {
+            // 고품질 학습 데이터 자동 생성
+            titanicData = generateTitanicDataset();
+            
+            // 데이터셋 기반 모델 훈련 최초 실행
+            trainModel();
+            
+            // UI 컴포넌트 데이터 바인딩 실행
+            renderCharts();
+            renderTable();
+            
+            // 예측 판정 갱신
+            updateLivePrediction();
+            
+            // 이벤트 위임 바인딩
+            setupEventListeners();
+        };
+
+    </script>
+</body>
+</html>
